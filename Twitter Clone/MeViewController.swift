@@ -22,6 +22,9 @@ class MeViewController: UIViewController,UIImagePickerControllerDelegate,UINavig
     @IBOutlet weak var handle: UILabel!
     @IBOutlet weak var about: UITextField!
     @IBOutlet weak var imageLoader: UIActivityIndicatorView!
+
+    @IBOutlet weak var numberFollowing: UIButton!
+    @IBOutlet weak var numberFollowers: UIButton!
     
     var loggedInUser:AnyObject?
     var databaseRef = FIRDatabase.database().reference()
@@ -29,28 +32,36 @@ class MeViewController: UIViewController,UIImagePickerControllerDelegate,UINavig
     
     var imagePicker = UIImagePickerController()
     
+    var loggedInUserData: NSDictionary?
+    
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
         self.loggedInUser = FIRAuth.auth()?.currentUser
         
-        self.databaseRef.child("user_profiles").child(self.loggedInUser!.uid).observeSingleEvent(of: .value) { (snapshot:FIRDataSnapshot) in
+        //get the user profile by using observeSingleEvent to reduce loading times when something is changed
+        //add separate observers for the required things
+        self.databaseRef.child("user_profiles").child(self.loggedInUser!.uid).observeSingleEvent(of: .value, with: { (snapshot) in
+            print(snapshot)
             
-            
-            let snapshot = snapshot.value as! [String: AnyObject]
+            let snapshot = snapshot.value as! NSDictionary
+
+            /** Store it in a variable **/
+            self.loggedInUserData = snapshot
+           
             
             self.name.text = snapshot["name"] as? String
             self.handle.text = snapshot["handle"] as? String
             
             //initially the user will not have an about data
             
-            if(snapshot["about"] !== nil)
+            if(snapshot["about"] as? String != nil)
             {
                 self.about.text = snapshot["about"] as? String
             }
             
-            if(snapshot["profile_pic"] !== nil)
+            if(snapshot["profile_pic"] as? String != nil)
             {
                 let databaseProfilePic = snapshot["profile_pic"]
                     as! String
@@ -58,10 +69,63 @@ class MeViewController: UIViewController,UIImagePickerControllerDelegate,UINavig
                 let data = try? Data(contentsOf: URL(string: databaseProfilePic)!)
                 
                 self.setProfilePicture(self.profilePicture,imageToSet:UIImage(data:data!)!)
+                
             }
             
+            
+            if(snapshot["followersCount"] != nil)
+            {
+                print("followers count")
+                print (snapshot["followersCount"]!)
+                self.numberFollowers.setTitle("\(snapshot["followersCount"]!)", for: .normal)
+            }
+            
+            if(snapshot["followingCount"] != nil)
+            {
+                print("following count")
+                self.numberFollowing.setTitle("\(snapshot["followingCount"]!)", for: .normal)
+            }
+            
+            
+            
+            
             self.imageLoader.stopAnimating()
+
+            }) { (error) in
+//          
+                print("error")
+//                print(error.localizedDescription)
         }
+        
+        /*
+         add a separate observer for followersCount
+        */
+        self.databaseRef.child("user_profiles").child(self.loggedInUser!.uid).child("followersCount").observe(.value, with: { (snapshot) in
+            
+            print("followersCount")
+            if(snapshot.exists())
+            {
+                self.numberFollowers.setTitle("\(snapshot.value!)", for: .normal)
+            }
+            
+            }) { (error) in
+                print(error.localizedDescription)
+        }
+        
+        /*
+         add a separate observer for followingCount
+        */
+        self.databaseRef.child("user_profiles").child(self.loggedInUser!.uid).child("followingCount").observe(.value, with: { (snapshot) in
+        
+            if(snapshot.exists())
+            {
+                self.numberFollowing.setTitle("\(snapshot.value!)", for: .normal)
+            }
+            }) { (error) in
+                print(error.localizedDescription)
+        }
+        
+ 
     }
     
     override func didReceiveMemoryWarning() {
@@ -200,7 +264,7 @@ class MeViewController: UIViewController,UIImagePickerControllerDelegate,UINavig
             
             let profilePicStorageRef = storageRef.child("user_profiles/\(self.loggedInUser!.uid)/profile_pic")
             
-            let uploadTask = profilePicStorageRef.put(imageData, metadata: nil)
+            let _ = profilePicStorageRef.put(imageData, metadata: nil)
             {metadata,error in
                 
                 if(error == nil)
@@ -211,7 +275,8 @@ class MeViewController: UIViewController,UIImagePickerControllerDelegate,UINavig
                 }
                 else
                 {
-                    print(error?.localizedDescription)
+                    print("error")
+//                    print(error?.localizedDescription)
                 }
                 
                 self.imageLoader.stopAnimating()
@@ -229,8 +294,36 @@ class MeViewController: UIViewController,UIImagePickerControllerDelegate,UINavig
     }
     @IBAction func AboutDidEndEditing(_ sender: AnyObject) {
         
+        
         self.databaseRef.child("user_profiles").child(self.loggedInUser!.uid).child("about").setValue(self.about.text)
         
     }
+
+    @IBAction func didTapFollowing(_ sender: UIButton) {
+        
+        
+    }
     
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        
+       
+        if(segue.identifier == "showFollowingTableViewController")
+        {
+            let showFollowingTableViewController = segue.destination as! ShowFollowingTableViewController
+            showFollowingTableViewController.user = self.loggedInUser as? FIRUser
+            
+        }
+        else if(segue.identifier == "showFollowersTableViewController")
+        {
+            let showFollowersTableViewController = segue.destination as! ShowFollowersTableViewController
+            showFollowersTableViewController.user = self.loggedInUser as? FIRUser
+            
+        }
+        
+        
+    }
+   
+    
+
+
 }

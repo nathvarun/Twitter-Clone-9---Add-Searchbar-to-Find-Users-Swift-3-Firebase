@@ -15,14 +15,24 @@ class LoginViewController: UIViewController {
     @IBOutlet weak var email: UITextField!
     @IBOutlet weak var password: UITextField!
     @IBOutlet weak var errorMessage: UILabel!
+
+    @IBOutlet weak var loginButton: UIBarButtonItem!
     
     
     var rootRef = FIRDatabase.database().reference()
     
     override func viewDidLoad() {
         super.viewDidLoad()
-
+       
+        //add gesture recognizer to hide keyboard
+        let tap: UITapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(LoginViewController.hideKeyboard))
+        
+        self.view.addGestureRecognizer(tap)
         // Do any additional setup after loading the view.
+    }
+    
+    func hideKeyboard(){
+        self.view.endEditing(true)
     }
 
     override func didReceiveMemoryWarning() {
@@ -66,4 +76,26 @@ class LoginViewController: UIViewController {
         })
     
     }
+    
+    @IBAction func didTapLoginAsVarun(_ sender: UIButton) {
+        
+        email.text = "nathvarun@hotmail.com"
+        password.text = "password"
+        
+    }
+    
+    @IBAction func didTapLoginAsJohn(_ sender: UIButton) {
+        
+        email.text = "test@gmail.com"
+        password.text = "password"
+        
+    }
+    
+    @IBAction func didTapUnsure(_ sender: UIButton) {
+        
+        email.text = "unsureprogrammer@gmail.com"
+        password.text = "password"
+    }
+    
+    
 }

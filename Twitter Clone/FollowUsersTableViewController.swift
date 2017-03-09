@@ -7,42 +7,53 @@
 //
 
 import UIKit
-import FirebaseDatabase
+import Firebase
 
 class FollowUsersTableViewController: UITableViewController,UISearchResultsUpdating{
 
     @IBOutlet var followUsersTableView: UITableView!
     let searchController = UISearchController(searchResultsController: nil)
 
+    var loggedInUser:FIRUser?
     var usersArray = [NSDictionary?]()
     var filteredUsers = [NSDictionary?]()
     
+    var testArray = [NSDictionary?]()
     
     var databaseRef = FIRDatabase.database().reference()
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        
+
         searchController.searchResultsUpdater = self
         searchController.dimsBackgroundDuringPresentation = false
         definesPresentationContext = true
         tableView.tableHeaderView = searchController.searchBar
         
+
         databaseRef.child("user_profiles").queryOrdered(byChild: "name").observe(.childAdded, with: { (snapshot) in
+
             
-            self.usersArray.append(snapshot.value as? NSDictionary)
-            
-            //insert the rows
-            
-            self.followUsersTableView.insertRows(at: [IndexPath(row:self.usersArray.count-1,section:0)], with: UITableViewRowAnimation.automatic)
+            let key = snapshot.key
+            let snapshot = snapshot.value as? NSDictionary
+            snapshot?.setValue(key, forKey: "uid")
+
+            if(key == self.loggedInUser?.uid)
+            {
+                print("Same as logged in user, so don't show!")
+            }
+            else
+            {
+                self.usersArray.append(snapshot)
+                //insert the rows
+                self.followUsersTableView.insertRows(at: [IndexPath(row:self.usersArray.count-1,section:0)], with: UITableViewRowAnimation.automatic)
+            }
+
+           
             }) { (error) in
             print(error.localizedDescription)
         }
-        // Uncomment the following line to preserve selection between presentations
-        // self.clearsSelectionOnViewWillAppear = false
 
-        // Uncomment the following line to display an Edit button in the navigation bar for this view controller.
-        // self.navigationItem.rightBarButtonItem = self.editButtonItem()
     }
 
     override func didReceiveMemoryWarning() {
@@ -88,6 +99,19 @@ class FollowUsersTableViewController: UITableViewController,UISearchResultsUpdat
         return cell
     }
     
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        if segue.identifier == "ShowUser" {
+            if let indexPath = tableView.indexPathForSelectedRow {
+                let user = usersArray[indexPath.row]
+                let controller = segue.destination as? OtherUsersProfileViewController
+                controller?.otherUser = user
+        
+            }
+        }
+    }
+    
+
+
     /*
     // Override to support conditional editing of the table view.
     override func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {

@@ -17,7 +17,7 @@ class ViewController: UIViewController{
 
         FIRAuth.auth()?.addStateDidChangeListener({ (auth, user) in
             
-            if let currentUser = user{
+            if user != nil{
                 
                 print("user is signed in")
                 

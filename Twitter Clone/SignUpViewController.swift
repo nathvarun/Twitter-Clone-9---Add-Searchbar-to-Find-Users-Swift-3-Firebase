@@ -72,6 +72,7 @@ class SignUpViewController: UIViewController {
 
     
     }
+    
     @IBAction func textDidChange(_ sender: UITextField) {
         
         if(email.text!.characters.count>0 && password.text!.characters.count>0)

@@ -22,12 +22,26 @@ class NewTweetViewController: UIViewController,UITextViewDelegate,UITextFieldDel
     //create a reference to the database
     var databaseRef = FIRDatabase.database().reference()
     var loggedInUser:AnyObject?
+    var loggedInUserData:NSDictionary? // data of logged in user
+    //followers will be passed from the homeViewController
+    var listFollowers = [NSDictionary?]()
     
     var imagePicker = UIImagePickerController()
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(true)
+
+    }
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        
 
+        
+        
+        print("Received all the followers MACCHA")
+        print(listFollowers)
+        
         self.newTweetToolbar.isHidden = true
         
         self.loggedInUser = FIRAuth.auth()?.currentUser
@@ -98,8 +112,7 @@ class NewTweetViewController: UIViewController,UITextViewDelegate,UITextFieldDel
     
     @IBAction func didTapCancel(_ sender: AnyObject) {
         
-        dismiss(animated: true
-            , completion: nil)
+        dismiss(animated: true, completion: nil)
     }
     
     func textViewDidBeginEditing(_ textView: UITextView) {
@@ -157,16 +170,32 @@ class NewTweetViewController: UIViewController,UITextViewDelegate,UITextFieldDel
         {
             let lowResImageData = UIImageJPEGRepresentation(imagesArray[0] as! UIImage, 0.50)
 
-            let uploadTask = pictureStorageRef.put(lowResImageData!,metadata: nil)
+            _ = pictureStorageRef.put(lowResImageData!,metadata: nil)
             {metadata,error in
                 
                 if(error == nil)
                 {
                     let downloadUrl = metadata!.downloadURL()
+                    let timestamp = Date().timeIntervalSince1970
                     
-                    let childUpdates = ["/tweets/\(self.loggedInUser!.uid!)/\(key)/text":self.newTweetTextView.text,
-                                        "/tweets/\(self.loggedInUser!.uid!)/\(key)/timestamp":"\(Date().timeIntervalSince1970)",
-                                        "/tweets/\(self.loggedInUser!.uid!)/\(key)/picture":downloadUrl!.absoluteString] as [String : Any]
+                    /**
+                     Under the user's id, put the user's id again and save his tweet under that
+                    **/
+                    var childUpdates = ["/users_feed/\(self.loggedInUser!.uid!)/\(key)/text":self.newTweetTextView.text,
+                                        "/users_feed/\(self.loggedInUser!.uid!)/\(key)/timestamp":"\(timestamp)",
+                                        "/users_feed/\(self.loggedInUser!.uid!)/\(key)/picture":downloadUrl!.absoluteString] as [String : Any]
+                    
+                    //post the tweet on all the followers timelines
+                    for user in self.listFollowers{
+                        
+                        //post on the followers timeline as well
+                        childUpdates["/users_feed/\(user!["uid"]!)/\(key)\(self.loggedInUser!.uid!)/\(key)/handle"] = self.loggedInUserData!["handle"] as! String
+                        childUpdates["/users_feed/\(user!["uid"]!)/\(key)\(self.loggedInUser!.uid!)/\(key)/name"] = self.loggedInUserData!["name"] as! String
+                        childUpdates["/users_feed/\(user!["uid"]!)/\(key)\(self.loggedInUser!.uid!)/\(key)/text"] = self.newTweetTextView.text
+                        childUpdates["/users_feed/\(user!["uid"]!)/\(key)\(self.loggedInUser!.uid!)/\(key)/timestamp"]  = "\(Date().timeIntervalSince1970)"
+                        childUpdates["/users_feed/\(user!["uid"]!)/\(key)\(self.loggedInUser!.uid!)/\(key)/uid"] = self.loggedInUser!.uid
+                        childUpdates["/users_feed/\(user!["uid"]!)/\(key)\(self.loggedInUser!.uid!)/\(key)/picture"] = downloadUrl!.absoluteString
+                    }
                     
                     self.databaseRef.updateChildValues(childUpdates)
                 }
@@ -178,9 +207,32 @@ class NewTweetViewController: UIViewController,UITextViewDelegate,UITextFieldDel
         //user has entered only text
         else if(tweetLength>0)
         {
-            let childUpdates = ["/tweets/\(self.loggedInUser!.uid!)/\(key)/text":newTweetTextView.text,
-                                "/tweets/\(self.loggedInUser!.uid!)/\(key)/timestamp":"\(Date().timeIntervalSince1970)"] as [String : Any]
+          
+            var childUpdates = ["/users_feed/\(self.loggedInUser!.uid!)/\(key)/text":newTweetTextView.text,
+                                "/users_feed/\(self.loggedInUser!.uid!)/\(key)/timestamp":"\(Date().timeIntervalSince1970)"
+                ] as [String : Any]
+        
+            /**
+                Post under the logged in user_profile_tweets node
+                These will show on the user's profile
+            **/
+            childUpdates["/user_profile_tweets/\(self.loggedInUser!.uid!)/\(key)/text"] =  newTweetTextView.text
+            childUpdates["/user_profile_tweets/\(self.loggedInUser!.uid!)/\(key)/timestamp"] = "\(Date().timeIntervalSince1970)"
+            childUpdates["/user_profile_tweets/\(self.loggedInUser!.uid!)/\(key)/tweet_by_uid"] = self.loggedInUser!.uid
+           
             
+            for user in self.listFollowers{
+                
+                //post on the followers timeline as well
+                childUpdates["/users_feed/\(user!["uid"]!)/\(key)/handle"] = self.loggedInUserData!["handle"] as! String
+                childUpdates["/users_feed/\(user!["uid"]!)/\(key)/name"] = self.loggedInUserData!["name"] as! String
+                childUpdates["/users_feed/\(user!["uid"]!)/\(key)/text"] = self.newTweetTextView.text
+                childUpdates["/users_feed/\(user!["uid"]!)/\(key)/timestamp"]  = "\(Date().timeIntervalSince1970)"
+                childUpdates["/users_feed/\(user!["uid"]!)/\(key)/tweet_by_uid"] = self.loggedInUser!.uid
+                childUpdates["users_feed/\(user!["uid"]!)/\(key)/key"] = key //store the key of the original tweet
+                
+            }
+
             self.databaseRef.updateChildValues(childUpdates)
             
             dismiss(animated: true, completion: nil)
@@ -191,17 +243,26 @@ class NewTweetViewController: UIViewController,UITextViewDelegate,UITextFieldDel
         {
             let lowResImageData = UIImageJPEGRepresentation(imagesArray[0] as! UIImage, 0.50)
 
-            let uploadTask = pictureStorageRef.put(lowResImageData!,metadata: nil)
+            _ = pictureStorageRef.put(lowResImageData!,metadata: nil)
             {metadata,error in
                 
                 if(error == nil)
                 {
                     let downloadUrl = metadata!.downloadURL()
                     
-                    let childUpdates = [
-                                        "/tweets/\(self.loggedInUser!.uid)/\(key)/timestamp":"\(Date().timeIntervalSince1970)",
-                                        "/tweets/\(self.loggedInUser!.uid)/\(key)/picture":downloadUrl!.absoluteString]
+                    var childUpdates = ["/users_feed/\(self.loggedInUser!.uid!)/\(key)/timestamp":"\(Date().timeIntervalSince1970)",
+                                        "/users_feed/\(self.loggedInUser!.uid!)/\(key)/picture":downloadUrl!.absoluteString] as [String : Any]
                     
+                    for user in self.listFollowers{
+                        
+                        //post on the followers timeline as well
+                        childUpdates["/users_feed/\(user!["uid"]!)/\(key)\(self.loggedInUser!.uid!)/\(key)/handle"] = self.loggedInUserData!["handle"] as! String
+                        childUpdates["/users_feed/\(user!["uid"]!)/\(key)\(self.loggedInUser!.uid!)/\(key)/name"] = self.loggedInUserData!["name"] as! String
+                        childUpdates["/users_feed/\(user!["uid"]!)/\(key)\(self.loggedInUser!.uid!)/\(key)/timestamp"]  = "\(Date().timeIntervalSince1970)"
+                        childUpdates["/users_feed/\(user!["uid"]!)/\(key)\(self.loggedInUser!.uid!)/\(key)/uid"] = self.loggedInUser!.uid
+                        childUpdates["/users_feed/\(user!["uid"]!)/\(key)\(self.loggedInUser!.uid!)/\(key)/picture"] = downloadUrl!.absoluteString
+                    }
+
                     self.databaseRef.updateChildValues(childUpdates)
                 }
                 else
@@ -266,6 +327,8 @@ class NewTweetViewController: UIViewController,UITextViewDelegate,UITextFieldDel
         
         
     }
+    
+    
     
 
 }

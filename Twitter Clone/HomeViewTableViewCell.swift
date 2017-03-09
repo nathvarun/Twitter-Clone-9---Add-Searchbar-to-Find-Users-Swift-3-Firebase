@@ -15,6 +15,11 @@ open class HomeViewTableViewCell: UITableViewCell {
     @IBOutlet weak var handle: UILabel!
     @IBOutlet weak var tweet: UITextView!
     @IBOutlet weak var tweetImage: UIImageView!
+    @IBOutlet weak var reply: UIButton!
+    @IBOutlet weak var retweet: UIButton!
+    @IBOutlet weak var like: UIButton!
+    @IBOutlet weak var retweetedIcon: UIButton!
+    @IBOutlet weak var retweetedByName: UILabel!
     
     @IBOutlet weak var imageViewHeightConstraint: NSLayoutConstraint!
     
